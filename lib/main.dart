@@ -3,6 +3,12 @@ void main() {
   runApp(MyApp());
 }
 class MyApp extends StatelessWidget {
+  List<Task> tasks = [
+    Task(title: "Zrobic lab3", deadline: "dzisiaj",done:true),
+    Task(title: "Wf", deadline: "Jutro",done: false),
+    Task(title: "Napisac storone", deadline: "w tym tygodniu",done: true),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -10,12 +16,77 @@ class MyApp extends StatelessWidget {
         appBar: AppBar(
           title: Text("KrakFlow"),
         ),
-        body: Center(child:Column(children: [
-          Text("KrakoFlow"),
-          Text("Organizacja studiów"),
-          Text("Dzisiejsze zadaia"),
+        body:
 
-        ],),),
+        ListView.builder(
+          padding: EdgeInsets.all(16),
+          itemCount: tasks.length + 1, // +1 dla nagłówka
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              // nagłówek
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  "Dzisiejsze zadania",
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+              );
+            } else {
+              final task = tasks[index - 1];
+
+              return Card(
+                margin: EdgeInsets.symmetric(vertical: 8),
+                child: Padding(
+                  padding: EdgeInsets.all(16),
+                  child: ListTile(
+                    leading: Icon(
+                      task.done ? Icons.check_circle : Icons.radio_button_unchecked,
+                      size: 32,
+                      color: task.done ? Colors.green : Colors.red,
+                    ),
+                    title: Text(
+                      task.title,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Text(
+                      "Termin: ${task.deadline}",
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                    ),
+                  ),
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class Task {
+  final String title;
+  final String deadline;
+  final bool done;
+  Task({required this.title, required this.deadline, this.done = false});
+}
+
+class TaskCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  const TaskCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
       ),
     );
   }
