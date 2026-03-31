@@ -4,13 +4,15 @@ void main() {
 }
 class MyApp extends StatelessWidget {
   List<Task> tasks = [
-    Task(title: "Zrobic lab3", deadline: "dzisiaj",done:true),
-    Task(title: "Wf", deadline: "Jutro",done: false),
-    Task(title: "Napisac storone", deadline: "w tym tygodniu",done: true),
+    Task(title: "Zrobic lab3", deadline: "dzisiaj",done:true,priority:"wysoki"),
+    Task(title: "Wf", deadline: "Jutro",done: false, priority:"niski"),
+    Task(title: "Napisac storone", deadline: "w tym tygodniu",done: true, priority:"średni"),
   ];
 
   @override
   Widget build(BuildContext context) {
+    int doneTasks = tasks.where((t) => t.done).length;
+
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
@@ -23,15 +25,23 @@ class MyApp extends StatelessWidget {
           itemCount: tasks.length + 1, // +1 dla nagłówka
           itemBuilder: (context, index) {
             if (index == 0) {
-              // nagłówek
               return Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text(
-                  "Dzisiejsze zadania",
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Masz dziś ${tasks.length} zadania"),
+                    Text("Wykonane: $doneTasks"),
+                    SizedBox(height: 8),
+                    Text(
+                      "Dzisiejsze zadania",
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ],
                 ),
               );
-            } else {
+            }
+            else {
               final task = tasks[index - 1];
 
               return Card(
@@ -49,8 +59,11 @@ class MyApp extends StatelessWidget {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text(
-                      "Termin: ${task.deadline}",
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      "Termin: ${task.deadline}\nPriorytet: ${task.priority}",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[700]!,
+                      ),
                     ),
                   ),
                 ),
@@ -67,7 +80,8 @@ class Task {
   final String title;
   final String deadline;
   final bool done;
-  Task({required this.title, required this.deadline, this.done = false});
+  final String priority;
+  Task({required this.title, required this.deadline, this.done = false,required this.priority});
 }
 
 class TaskCard extends StatelessWidget {
