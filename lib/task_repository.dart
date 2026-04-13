@@ -1,4 +1,12 @@
-// task_repository.dart
+import 'main.dart';
+
+class TaskRepository {
+  static List<Task> tasks = [
+    Task(title: "Zrobic lab3", deadline: "dzisiaj", done: true, priority: "wysoki"),
+    Task(title: "Wf", deadline: "Jutro", done: false, priority: "niski"),
+    Task(title: "Napisac storone", deadline: "w tym tygodniu", done: true, priority: "średni"),
+  ];
+}
 
 class Task {
   final String title;
@@ -9,16 +17,7 @@ class Task {
   Task({
     required this.title,
     required this.deadline,
-    this.done = false,
     required this.priority,
+    this.done = false,
   });
-}
-
-class TaskRepository {
-
-  static List<Task> tasks = [
-    Task(title: "Zrobic lab3", deadline: "dzisiaj", done: true, priority: "wysoki"),
-    Task(title: "Wf", deadline: "Jutro", done: false, priority: "niski"),
-    Task(title: "Napisac storone", deadline: "w tym tygodniu", done: true, priority: "średni"),
-  ];
 }
