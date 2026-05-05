@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'task_repository.dart';
+import 'models/task.dart';
+import 'services/task_api_service.dart';
 
 void main() {
   runApp(MyApp());
@@ -16,6 +17,7 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 class MojEkranGlownyAplikacji extends StatefulWidget {
   const MojEkranGlownyAplikacji({super.key});
 
@@ -25,15 +27,42 @@ class MojEkranGlownyAplikacji extends StatefulWidget {
 
 class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
   String selectedFilter = "wszystkie";
+  List<Task> allTasks = [];
+  bool isLoading = true; // Zmienna do obsługi ekranu ładowania
+
+  @override
+  void initState() {
+    super.initState();
+    _pobierzZadaniaZApi(); // Pobieramy zadania przy starcie ekranu
+  }
+
+  Future<void> _pobierzZadaniaZApi() async {
+    try {
+      final tasks = await TaskApiService.fetchTasks();
+      setState(() {
+        allTasks = tasks;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Błąd pobierania danych: $e")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    List<Task> filteredTasks = TaskRepository.tasks;
+    List<Task> filteredTasks = allTasks;
 
     if (selectedFilter == "wykonane") {
-      filteredTasks = TaskRepository.tasks.where((task) => task.done).toList();
+      filteredTasks = allTasks.where((task) => task.done).toList();
     } else if (selectedFilter == "do zrobienia") {
-      filteredTasks = TaskRepository.tasks.where((task) => !task.done).toList();
+      filteredTasks = allTasks.where((task) => !task.done).toList();
     }
+
     return Scaffold(
       appBar: AppBar(
         title: Text("KrakFlow"),
@@ -55,7 +84,7 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
                       TextButton(
                         onPressed: () {
                           setState(() {
-                            TaskRepository.tasks.clear();
+                            allTasks.clear();
                           });
                           Navigator.pop(context);
 
@@ -73,13 +102,15 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
           ),
         ],
       ),
-      body: Padding(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator()) // Ekran ładowania
+          : Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Masz dziś ${TaskRepository.tasks.length} zadania",
+              "Masz dziś ${allTasks.length} zadania",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 16),
@@ -120,10 +151,10 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
                 itemBuilder: (context, index) {
                   final task = filteredTasks[index];
                   return Dismissible(
-                    key: ValueKey(task.title),
+                    key: ValueKey(task.title + index.toString()), // Dodany index dla unikalności po pobraniu z API
                     onDismissed: (direction) {
                       setState(() {
-                        TaskRepository.tasks.remove(task);
+                        allTasks.remove(task);
                       });
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -141,7 +172,6 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
                         });
                       },
                       onTap: () async {
-
                         final updatedTask = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -149,10 +179,13 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
                           ),
                         );
 
-
                         if (updatedTask != null) {
                           setState(() {
-                            TaskRepository.tasks[index] = updatedTask;
+                            // Aktualizacja odpowiedniego zadania w głównej liście
+                            int taskIndex = allTasks.indexOf(task);
+                            if (taskIndex != -1) {
+                              allTasks[taskIndex] = updatedTask;
+                            }
                           });
                         }
                       },
@@ -173,7 +206,7 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
 
           if (newTask != null) {
             setState(() {
-              TaskRepository.tasks.add(newTask);
+              allTasks.add(newTask);
             });
           }
         },
@@ -182,6 +215,7 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
     );
   }
 }
+
 class TaskCard extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -285,6 +319,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
   }
 }
+
 class EditTaskScreen extends StatefulWidget {
   final Task task;
 
