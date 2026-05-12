@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'models/task.dart';
-import 'services/task_api_service.dart';
+import 'services/task_local_database.dart';
+import 'services/task_sync_service.dart';
 
-void main() {
-  runApp(MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox("tasks");
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -13,7 +18,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: "Lista Zadan",
-      home: MojEkranGlownyAplikacji(),
+      home: const MojEkranGlownyAplikacji(),
     );
   }
 }
@@ -28,17 +33,21 @@ class MojEkranGlownyAplikacji extends StatefulWidget {
 class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
   String selectedFilter = "wszystkie";
   List<Task> allTasks = [];
-  bool isLoading = true; // Zmienna do obsługi ekranu ładowania
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _pobierzZadaniaZApi(); // Pobieramy zadania przy starcie ekranu
+    _wczytajZadania();
   }
 
-  Future<void> _pobierzZadaniaZApi() async {
+  Future<void> _wczytajZadania() async {
     try {
-      final tasks = await TaskApiService.fetchTasks();
+
+      await TaskSyncService.loadInitialDataIfNeeded();
+
+
+      final tasks = TaskLocalDatabase.getTasks();
       setState(() {
         allTasks = tasks;
         isLoading = false;
@@ -48,7 +57,7 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
         isLoading = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Błąd pobierania danych: $e")),
+        SnackBar(content: Text("Błąd: $e")),
       );
     }
   }
@@ -65,34 +74,34 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("KrakFlow"),
+        title: const Text("KrakFlow"),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete),
+            icon: const Icon(Icons.delete),
             onPressed: () {
               showDialog(
                 context: context,
                 builder: (context) {
                   return AlertDialog(
-                    title: Text("Potwierdzenie"),
-                    content: Text("Czy na pewno chcesz usunąć wszystkie zadania?"),
+                    title: const Text("Potwierdzenie"),
+                    content: const Text("Czy na pewno chcesz usunąć wszystkie zadania?"),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
-                        child: Text("Anuluj"),
+                        child: const Text("Anuluj"),
                       ),
                       TextButton(
-                        onPressed: () {
-                          setState(() {
-                            allTasks.clear();
-                          });
+                        onPressed: () async {
+
+                          await TaskLocalDatabase.deleteAllTasks();
+                          _wczytajZadania();
                           Navigator.pop(context);
 
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Wszystkie zadania zostały usunięte")),
                           );
                         },
-                        child: Text("Usuń", style: TextStyle(color: Colors.red)),
+                        child: const Text("Usuń", style: TextStyle(color: Colors.red)),
                       ),
                     ],
                   );
@@ -103,73 +112,65 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
         ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator()) // Ekran ładowania
+          ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "Masz dziś ${allTasks.length} zadania",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: 16),
+            const Text(
               "Dzisiejsze zadania",
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Row(
               children: [
                 TextButton(
                   onPressed: () => setState(() => selectedFilter = "wszystkie"),
-                  child: Text(
-                      "Wszystkie",
-                      style: TextStyle(color: selectedFilter == "wszystkie" ? Colors.blue : Colors.grey)
-                  ),
+                  child: Text("Wszystkie",
+                      style: TextStyle(color: selectedFilter == "wszystkie" ? Colors.blue : Colors.grey)),
                 ),
                 TextButton(
                   onPressed: () => setState(() => selectedFilter = "do zrobienia"),
-                  child: Text(
-                      "Do zrobienia",
-                      style: TextStyle(color: selectedFilter == "do zrobienia" ? Colors.blue : Colors.grey)
-                  ),
+                  child: Text("Do zrobienia",
+                      style: TextStyle(color: selectedFilter == "do zrobienia" ? Colors.blue : Colors.grey)),
                 ),
                 TextButton(
                   onPressed: () => setState(() => selectedFilter = "wykonane"),
-                  child: Text(
-                      "Wykonane",
-                      style: TextStyle(color: selectedFilter == "wykonane" ? Colors.blue : Colors.grey)
-                  ),
+                  child: Text("Wykonane",
+                      style: TextStyle(color: selectedFilter == "wykonane" ? Colors.blue : Colors.grey)),
                 ),
               ],
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Expanded(
               child: ListView.builder(
                 itemCount: filteredTasks.length,
                 itemBuilder: (context, index) {
                   final task = filteredTasks[index];
                   return Dismissible(
-                    key: ValueKey(task.title + index.toString()), // Dodany index dla unikalności po pobraniu z API
-                    onDismissed: (direction) {
-                      setState(() {
-                        allTasks.remove(task);
-                      });
+                    key: ValueKey(task.id),
+                    onDismissed: (direction) async {
+                      await TaskLocalDatabase.deleteTask(task.id);
+                      _wczytajZadania();
+
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Zadanie usunięte"),
-                        ),
+                        const SnackBar(content: Text("Zadanie usunięte")),
                       );
                     },
                     child: TaskCard(
                       title: task.title,
                       subtitle: "termin: ${task.deadline} | ważność ${task.priority}",
                       done: task.done,
-                      onChanged: (newValue) {
-                        setState(() {
-                          task.done = newValue!;
-                        });
+                      onChanged: (newValue) async {
+                        task.done = newValue!;
+                        await TaskLocalDatabase.updateTask(task);
+                        _wczytajZadania();
                       },
                       onTap: () async {
                         final updatedTask = await Navigator.push(
@@ -180,13 +181,8 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
                         );
 
                         if (updatedTask != null) {
-                          setState(() {
-                            // Aktualizacja odpowiedniego zadania w głównej liście
-                            int taskIndex = allTasks.indexOf(task);
-                            if (taskIndex != -1) {
-                              allTasks[taskIndex] = updatedTask;
-                            }
-                          });
+                          await TaskLocalDatabase.updateTask(updatedTask);
+                          _wczytajZadania();
                         }
                       },
                     ),
@@ -201,16 +197,15 @@ class _MojEkranGlownyAplikacjiState extends State<MojEkranGlownyAplikacji> {
         onPressed: () async {
           final newTask = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => AddTaskScreen()),
+            MaterialPageRoute(builder: (context) => const AddTaskScreen()),
           );
 
           if (newTask != null) {
-            setState(() {
-              allTasks.add(newTask);
-            });
+            await TaskLocalDatabase.addTask(newTask);
+            _wczytajZadania();
           }
         },
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
       ),
     );
   }
@@ -269,41 +264,22 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Nowe zadanie"),
-      ),
+      appBar: AppBar(title: const Text("Nowe zadanie")),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(
-                labelText: "Tytul zadania",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: deadlineController,
-              decoration: InputDecoration(
-                labelText: "Termin",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: priorityController,
-              decoration: InputDecoration(
-                labelText: "Priorytet",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            SizedBox(height: 24),
+            TextField(controller: titleController, decoration: const InputDecoration(labelText: "Tytul zadania", border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: deadlineController, decoration: const InputDecoration(labelText: "Termin", border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: priorityController, decoration: const InputDecoration(labelText: "Priorytet", border: OutlineInputBorder())),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
                 final newTask = Task(
+                  id: DateTime.now().millisecondsSinceEpoch,
                   title: titleController.text,
                   deadline: deadlineController.text,
                   priority: priorityController.text,
@@ -311,7 +287,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 );
                 Navigator.pop(context, newTask);
               },
-              child: Text("zapisz"),
+              child: const Text("zapisz"),
             ),
           ],
         ),
@@ -345,41 +321,30 @@ class _EditTaskScreenState extends State<EditTaskScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Edytuj zadanie"),
-      ),
+      appBar: AppBar(title: const Text("Edytuj zadanie")),
       body: Padding(
-        padding: EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: titleController,
-              decoration: InputDecoration(labelText: "Tytul zadania", border: OutlineInputBorder()),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: deadlineController,
-              decoration: InputDecoration(labelText: "Termin", border: OutlineInputBorder()),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              controller: priorityController,
-              decoration: InputDecoration(labelText: "Priorytet", border: OutlineInputBorder()),
-            ),
-            SizedBox(height: 24),
+            TextField(controller: titleController, decoration: const InputDecoration(labelText: "Tytul zadania", border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: deadlineController, decoration: const InputDecoration(labelText: "Termin", border: OutlineInputBorder())),
+            const SizedBox(height: 16),
+            TextField(controller: priorityController, decoration: const InputDecoration(labelText: "Priorytet", border: OutlineInputBorder())),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () {
                 final updatedTask = Task(
+                  id: widget.task.id,
                   title: titleController.text,
                   deadline: deadlineController.text,
                   priority: priorityController.text,
                   done: widget.task.done,
                 );
-
                 Navigator.pop(context, updatedTask);
               },
-              child: Text("Zapisz zmiany"),
+              child: const Text("Zapisz zmiany"),
             ),
           ],
         ),
