@@ -3,6 +3,7 @@ import 'package:hive_ce_flutter/hive_flutter.dart';
 import 'models/task.dart';
 import 'services/task_local_database.dart';
 import 'services/task_sync_service.dart';
+import 'dart:developer';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
